@@ -27,13 +27,13 @@ public class BaseTest {
       chromeOptions.addArguments("--headless=new");
         switch (browser){
             case "chrome":
-                driver = new ChromeDriver();
+                driver = new ChromeDriver(chromeOptions);
                 break;
             case "firefox":
                 driver = new FirefoxDriver();
                 break;
             default:
-                driver = new ChromeDriver();
+                driver = new ChromeDriver(chromeOptions);
                 break;
 
         }
