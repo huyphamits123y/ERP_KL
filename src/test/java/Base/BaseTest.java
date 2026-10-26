@@ -1,0 +1,174 @@
+package Base;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.support.ui.ExpectedCondition;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.testng.Assert;
+
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class BaseTest {
+    public static WebDriver driver;
+    public static WebDriverWait wait;
+
+    public static void setDriver(String browser){
+        switch (browser){
+            case "chrome":
+                driver = new ChromeDriver();
+                break;
+            case "firefox":
+                driver = new FirefoxDriver();
+                break;
+            default:
+                driver = new ChromeDriver();
+                break;
+
+        }
+        wait = new WebDriverWait(driver, Duration.ofSeconds(5));
+        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30)); // có chức năng chờ trang load trong 30s nếu vượt quá thì fail
+        driver.manage().window().maximize();;
+
+    }
+
+    public static void visit(String location) {
+        driver.get(location);
+    }
+
+    public static void clear(By by) {
+        driver.findElement(by).clear();
+    }
+
+    public static void fill(By by, String text) {
+        getElement(by).sendKeys(text);
+    }
+
+    public static void click(By by) {
+        wait.until(ExpectedConditions.elementToBeClickable(by)).click();
+    }
+
+    public static String getText(By by) {
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(by)).getText();
+    }
+
+    public static WebElement getElement(By by){
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(by));
+    }
+
+    public static List<WebElement> getElements(By by) {
+        return driver.findElements(by);
+    }
+    public static void back(){
+        driver.navigate().back();
+    }
+    public static void refresh(){
+        driver.navigate().refresh();
+    }
+
+    public static WebElement getOption(String name){
+        By by = By.xpath("//select/option[.='" + name + "']");
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(by));
+    }
+    public static void quit() {
+        driver.quit();
+    }
+
+    public static void closeCurrentTabAndBack(String parentWindow) {
+        System.out.println("tab hien tai" + driver.getCurrentUrl());
+        driver.close();                       // đóng tab hiện tại
+        driver.switchTo().window(parentWindow); // quay về tab cha
+        System.out.println("tab thay doi" + driver.getCurrentUrl());
+    }
+
+    public static WebElement getElementPresence(By by){
+        // presenceOfElementLocated
+        // Chỉ cần element trong DOM
+        // không cần visible
+        // không cần click able
+        // Vì sao dùng presence thay vì visibility hay clickable
+        // visibility fail do animation trượt
+        // clickable fail do overly
+        // với menu kiểu react + animation, element:
+        // luôn tồn tại trong DOM
+        // chị bị translate/ opacity -> presenceOf là lựa chọn đúng
+        return  wait.until(ExpectedConditions.presenceOfElementLocated(by));
+    }
+    public static void clickJS(WebElement element){
+        // Dùng jsClick thay cho click()
+        // gọi click trực tiếp trên DOM
+        // không quan tâm: overlay, animation, z-index
+        // click giống như user click thật ở browser
+
+        ((JavascriptExecutor) driver)
+                .executeScript("arguments[0].scrollIntoView(true);", element);
+
+        ((JavascriptExecutor) driver)
+                .executeScript("arguments[0].click();", element);
+    }
+    // chờ đơị đến khi url chuyển sang url mới
+    public static void waitForUrl(String url){
+        wait.until(
+                ExpectedConditions.urlContains(url)
+        );
+    }
+
+    public static void openLinkPresenceJS(By by){
+        WebElement button = getElementPresence(by);
+
+        ((JavascriptExecutor) driver)
+                .executeScript("arguments[0].scrollIntoView(true);", button);
+
+        ((JavascriptExecutor) driver)
+                .executeScript("arguments[0].click();", button);
+    }
+
+    public static void switchToNewTab(String parentWindow) {
+        wait.until(ExpectedConditions.numberOfWindowsToBe(2));
+        for (String window : driver.getWindowHandles()) {
+            if (!window.equals(parentWindow)) {
+                driver.switchTo().window(window);
+                break;
+            }
+        }
+    }
+
+
+    public static  void waitForPageLoaded() {
+        ExpectedCondition<Boolean> jsLoad = new ExpectedCondition<Boolean>() {
+            public Boolean apply(WebDriver driver) {
+                return ((JavascriptExecutor) driver).executeScript("return document.readyState").toString()
+                        .equals("complete");
+            }
+        };
+        ExpectedCondition<Boolean> jQueryLoad = new ExpectedCondition<Boolean>() {
+            public Boolean apply(WebDriver driver) {
+                try{
+                    return ((Long) ((JavascriptExecutor) driver).executeScript("return jQuery.active") == 0);
+                }catch (Exception e){
+                    return true;
+                }
+
+
+            }
+        };
+        try {
+            Thread.sleep(1000);
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+            wait.until(jsLoad);
+            wait.until(jQueryLoad);
+        } catch (Throwable error) {
+
+            Assert.fail("Timeout waiting for Page Load Request to complete.");
+        }
+    }
+}
